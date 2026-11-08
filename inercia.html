@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inércia do Rio — Diagnóstico de Trajetória</title>
+<style>
+:root{
+  --bg:#0f172a;--card:#1e293b;--input:#0b1220;--text:#f8fafc;
+  --muted:#94a3b8;--primary:#38bdf8;--accent:#f43f5e;--ok:#4ade80;
+  --warn:#facc15;--border:#334155;
+  --font:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
+}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:var(--bg);color:var(--text);font-family:var(--font)}
+.container{max-width:900px;margin:auto;display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+h1,h2,h3{margin-top:0}
+h1{text-align:center;font-size:1.55rem}
+.subtitle{text-align:center;color:var(--muted);font-size:.9rem;margin-bottom:22px}
+.section-title{color:var(--primary);font-size:1.05rem;border-bottom:1px solid var(--border);padding-bottom:8px;margin:20px 0 15px}
+label{display:block;font-size:.9rem;margin-bottom:6px}
+.description{font-size:.8rem;color:var(--muted);margin:5px 0 8px}
+input[type=text],textarea,select{
+ width:100%;padding:10px;background:var(--input);border:1px solid var(--border);
+ border-radius:7px;color:var(--text);font:inherit
+}
+textarea{min-height:82px;resize:vertical}
+.form-group{margin-bottom:15px}
+.range-container{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;accent-color:var(--primary)}
+.range-value{width:42px;text-align:right;font-weight:700;color:var(--primary)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.radio-group{display:flex;flex-direction:column;gap:8px}
+.radio-option{padding:11px;background:var(--input);border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.radio-option input{margin-right:8px}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.stat{background:var(--input);border:1px solid var(--border);border-radius:9px;padding:15px;text-align:center}
+.stat-label{font-size:.75rem;color:var(--muted)}
+.stat-value{font-size:1.65rem;font-weight:800;color:var(--primary);margin-top:5px}
+.negative{color:var(--accent)!important}.positive{color:var(--ok)!important}.neutral{color:var(--warn)!important}
+button{border:0;border-radius:7px;padding:12px 16px;font-weight:700;cursor:pointer;font-size:.93rem}
+.btn-primary{background:var(--primary);color:#082032}.btn-secondary{background:#334155;color:white}
+.btn-group{display:flex;gap:10px;flex-wrap:wrap}.btn-group button{flex:1;min-width:180px}
+.message{padding:14px;border-left:4px solid var(--primary);background:var(--input);border-radius:5px;line-height:1.5}
+.sim{border:1px solid var(--border);padding:15px;border-radius:9px;background:var(--input)}
+.sim output{font-weight:800;color:var(--primary)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+td,th{border-bottom:1px solid var(--border);padding:8px;text-align:left}
+th{color:var(--muted)}
+.hidden{display:none}
+.small{font-size:.76rem;color:var(--muted)}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#334155;font-size:.75rem;margin:2px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="card">
+<h1>Inércia do Rio</h1>
+<div class="subtitle">Modelo experimental de posição, controlo, inércia e eficiência da ação</div>
+
+<div class="section-title">1. Situação que queres compreender</div>
+<div class="form-group">
+<label for="userName">Nome / identificação</label>
+<input id="userName" type="text" placeholder="Ex.: Zimous">
+</div>
+<div class="form-group">
+<label for="situation">O que está a acontecer?</label>
+<textarea id="situation" placeholder="Descreve a situação sem tentar resolver ainda."></textarea>
+</div>
+<div class="form-group">
+<label for="direction">Para onde gostarias que a situação evoluísse?</label>
+<textarea id="direction" placeholder="Ex.: estabilizar, melhorar, sair, decidir, recuperar, aproximar-me de um objetivo..."></textarea>
+</div>
+<div class="form-group">
+<label for="challenge">Qual é a principal dificuldade ou pressão sentida?</label>
+<textarea id="challenge" placeholder="O que está a tornar difícil alterar a trajetória?"></textarea>
+</div>
+
+<div class="section-title">2. Posição no rio</div>
+<div class="grid">
+<div class="form-group">
+<label for="position">Sensação de posição atual [0–100]</label>
+<div class="description">0 = completamente perdido/sem referência; 100 = posição muito clara.</div>
+<div class="range-container"><input id="position" type="range" min="0" max="100" value="50" oninput="show('positionVal',this.value)"><span id="positionVal" class="range-value">50</span></div>
+</div>
+<div class="form-group">
+<label for="directionClarity">Clareza da direção [0–100]</label>
+<div class="description">Quanto sabes para onde queres ir.</div>
+<div class="range-container"><input id="directionClarity" type="range" min="0" max="100" value="50" oninput="show('directionClarityVal',this.value)"><span id="directionClarityVal" class="range-value">50</span></div>
+</div>
+</div>
+
+<div class="section-title">3. Correntes / DD — forças que mantêm a trajetória atual [0–100]</div>
+<div class="description">DD não significa necessariamente “algo mau”. Representa a força que dificulta alterar a trajetória atual.</div>
+<div class="grid">
+<div class="form-group"><label>Desconhecimento / falta de clareza</label><div class="range-container"><input id="ddUnknown" type="range" min="0" max="100" value="50" oninput="show('ddUnknownVal',this.value)"><span id="ddUnknownVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Hábitos / inércia comportamental</label><div class="range-container"><input id="ddHabits" type="range" min="0" max="100" value="50" oninput="show('ddHabitsVal',this.value)"><span id="ddHabitsVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Desgaste físico / emocional</label><div class="range-container"><input id="ddExhaustion" type="range" min="0" max="100" value="50" oninput="show('ddExhaustionVal',this.value)"><span id="ddExhaustionVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Ambiente / contexto</label><div class="range-container"><input id="ddEnvironment" type="range" min="0" max="100" value="50" oninput="show('ddEnvironmentVal',this.value)"><span id="ddEnvironmentVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Pressão emocional / medo</label><div class="range-container"><input id="ddEmotion" type="range" min="0" max="100" value="50" oninput="show('ddEmotionVal',this.value)"><span id="ddEmotionVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Obrigações / responsabilidades</label><div class="range-container"><input id="ddObligations" type="range" min="0" max="100" value="50" oninput="show('ddObligationsVal',this.value)"><span id="ddObligationsVal" class="range-value">50</span></div></div>
+</div>
+
+<div class="section-title">4. AM — capacidade atualmente mobilizável [0–100]</div>
+<div class="description">Não mede “valor pessoal”. Mede recursos que podem ser mobilizados na situação atual.</div>
+<div class="grid">
+<div class="form-group"><label>Conhecimento / compreensão</label><div class="range-container"><input id="amKnowledge" type="range" min="0" max="100" value="50" oninput="show('amKnowledgeVal',this.value)"><span id="amKnowledgeVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Margem para assumir risco / erro</label><div class="range-container"><input id="amRisk" type="range" min="0" max="100" value="50" oninput="show('amRiskVal',this.value)"><span id="amRiskVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Tempo / disponibilidade</label><div class="range-container"><input id="amTime" type="range" min="0" max="100" value="50" oninput="show('amTimeVal',this.value)"><span id="amTimeVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Recursos / meios disponíveis</label><div class="range-container"><input id="amResources" type="range" min="0" max="100" value="50" oninput="show('amResourcesVal',this.value)"><span id="amResourcesVal" class="range-value">50</span></div></div>
+</div>
+
+<div class="section-title">5. Assimetria do controlo</div>
+<div class="description">Avalia a proporção da situação sobre a qual tens capacidade de ação direta. Não confundir controlo com responsabilidade.</div>
+<div class="grid">
+<div class="form-group"><label>Controlo direto [0–100]</label><div class="range-container"><input id="control" type="range" min="0" max="100" value="50" oninput="show('controlVal',this.value)"><span id="controlVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Capacidade de influência [0–100]</label><div class="range-container"><input id="influence" type="range" min="0" max="100" value="50" oninput="show('influenceVal',this.value)"><span id="influenceVal" class="range-value">50</span></div></div>
+<div class="form-group"><label>Forças fora do teu controlo [0–100]</label><div class="range-container"><input id="outside" type="range" min="0" max="100" value="50" oninput="show('outsideVal',this.value)"><span id="outsideVal" class="range-value">50</span></div></div>
+</div>
+
+<div class="section-title">6. EA — modo de ação atual</div>
+<div class="radio-group">
+<label class="radio-option"><input type="radio" name="eaMode" value="0.5"> <strong>EA 0,5 — Força bruta</strong><div class="description">Mais esforço sem alterar suficientemente o sistema.</div></label>
+<label class="radio-option"><input type="radio" name="eaMode" value="1" checked> <strong>EA 1,0 — Ação direta/pontual</strong><div class="description">Resolvo problemas à medida que aparecem.</div></label>
+<label class="radio-option"><input type="radio" name="eaMode" value="1.8"> <strong>EA 1,8 — Ação estrutural</strong><div class="description">Altero rotinas, ambiente, processos ou condições para mudar a dinâmica.</div></label>
+</div>
+
+<div class="section-title">7. Direção da situação</div>
+<div class="radio-group">
+<label class="radio-option"><input type="radio" name="trend" value="negative" checked> A situação está a afastar-se do que considero desejável.</label>
+<label class="radio-option"><input type="radio" name="trend" value="stable"> A situação está relativamente estável.</label>
+<label class="radio-option"><input type="radio" name="trend" value="positive"> A situação está a aproximar-se do que considero desejável.</label>
+</div>
+
+<button class="btn-primary" style="width:100%;margin-top:18px" onclick="calculate()">CALCULAR POSIÇÃO NO RIO</button>
+</div>
+
+<div id="resultsCard" class="card hidden">
+<h2>Leitura da posição</h2>
+<div class="results">
+<div class="stat"><div class="stat-label">AM</div><div id="resAM" class="stat-value">—</div></div>
+<div class="stat"><div class="stat-label">DD</div><div id="resDD" class="stat-value">—</div></div>
+<div class="stat"><div class="stat-label">EA</div><div id="resEA" class="stat-value">—</div></div>
+<div class="stat"><div class="stat-label">Efeito efetivo</div><div id="resEffect" class="stat-value">—</div></div>
+<div class="stat"><div class="stat-label">Trajetória</div><div id="resTrajectory" class="stat-value">—</div></div>
+<div class="stat"><div class="stat-label">EA mínimo para equilíbrio</div><div id="resThreshold" class="stat-value">—</div></div>
+</div>
+<div id="status" class="message" style="margin-top:16px"></div>
+
+<div class="section-title">Corrente dominante</div>
+<div id="dominant"></div>
+
+<div class="section-title">Controlo</div>
+<div id="controlRead" class="message"></div>
+
+<div class="section-title">Simulador de intervenção</div>
+<div class="sim">
+<p class="small">Experimenta alterar uma variável sem modificar o diagnóstico original.</p>
+<label>DD simulada</label>
+<div class="range-container"><input id="simDD" type="range" min="0" max="100" value="50" oninput="simulate()"><span id="simDDVal" class="range-value">50</span></div>
+<label>AM simulada</label>
+<div class="range-container"><input id="simAM" type="range" min="0" max="100" value="50" oninput="simulate()"><span id="simAMVal" class="range-value">50</span></div>
+<label>EA simulado</label>
+<div class="range-container"><input id="simEA" type="range" min="50" max="200" value="100" oninput="simulate()"><span id="simEAVal" class="range-value">1,00</span></div>
+<p>Trajetória simulada: <output id="simTrajectory">0</output></p>
+<p id="simInterpretation" class="small"></p>
+</div>
+
+<div class="section-title">Menor alavanca identificada</div>
+<div id="recommendation" class="message"></div>
+
+<div class="section-title">Dados</div>
+<div class="btn-group">
+<button class="btn-primary" onclick="downloadJSON()">Descarregar JSON</button>
+<button class="btn-secondary" onclick="printReport()">Imprimir / Guardar PDF</button>
+</div>
+</div>
+
+</div>
+
+<script>
+let data={};
+
+function show(id,v){document.getElementById(id).textContent=v}
+
+function val(id){return Number(document.getElementById(id).value)}
+function avg(a){return Math.round(a.reduce((x,y)=>x+y,0)/a.length)}
+
+function calculate(){
+ const dd={
+  desconhecimento:val("ddUnknown"),habitos_inercia:val("ddHabits"),desgaste:val("ddExhaustion"),
+  ambiente:val("ddEnvironment"),pressao_emocional:val("ddEmotion"),obrigacoes:val("ddObligations")
+ };
+ const am={
+  conhecimento:val("amKnowledge"),risco:val("amRisk"),tempo:val("amTime"),recursos:val("amResources")
+ };
+ const DD=avg(Object.values(dd)), AM=avg(Object.values(am));
+ const EA=Number(document.querySelector('input[name="eaMode"]:checked').value);
+ const effect=Math.round(AM*EA), trajectory=effect-DD;
+ const threshold=AM>0?DD/AM:Infinity;
+ const control=val("control"), influence=val("influence"), outside=val("outside");
+
+ const factors=[
+  ["Desconhecimento / falta de clareza",dd.desconhecimento],
+  ["Hábitos / inércia",dd.habitos_inercia],
+  ["Desgaste físico / emocional",dd.desgaste],
+  ["Ambiente / contexto",dd.ambiente],
+  ["Pressão emocional / medo",dd.pressao_emocional],
+  ["Obrigações / responsabilidades",dd.obrigacoes]
+ ].sort((a,b)=>b[1]-a[1]);
+
+ data={
+  identificacao:{nome:document.getElementById("userName").value||"Utilizador",
+  situacao:document.getElementById("situation").value,direcao_desejada:document.getElementById("direction").value,
+  desafio:document.getElementById("challenge").value,data:new Date().toISOString()},
+  posicao:{clareza_posicao:val("position"),clareza_direcao:val("directionClarity"),
+  tendencia:document.querySelector('input[name="trend"]:checked').value},
+  metricas:{AM_disponivel:AM,DD_efetiva:DD,EA_modo:EA,efeito_efetivo:effect,
+  alteracao_real_trajetoria:trajectory,EA_minimo_equilibrio:Number.isFinite(threshold)?Number(threshold.toFixed(2)):null},
+  detalhe_DD:dd,detalhe_AM:am,
+  controlo:{controlo_direto:control,influencia:influence,fora_do_controlo:outside},
+  corrente_dominante:factors[0]
+ };
+
+ document.getElementById("resAM").textContent=AM;
+ document.getElementById("resDD").textContent=DD;
+ document.getElementById("resEA").textContent=EA.toFixed(1);
+ document.getElementById("resEffect").textContent=effect;
+ const tr=document.getElementById("resTrajectory"); tr.textContent=(trajectory>0?"+":"")+trajectory;
+ tr.className="stat-value "+(trajectory>0?"positive":trajectory<0?"negative":"neutral");
+ document.getElementById("resThreshold").textContent=Number.isFinite(threshold)?threshold.toFixed(2):"∞";
+
+ document.getElementById("dominant").innerHTML=`<span class="badge">${factors[0][0]}</span> <strong>${factors[0][1]}/100</strong><br><span class="small">Esta é a força de DD com maior intensidade no diagnóstico atual.</span>`;
+
+ let controlText;
+ if(control>=70) controlText="Existe controlo direto relativamente elevado. A intervenção pode concentrar-se em ações próprias.";
+ else if(influence>=60) controlText="O controlo direto é limitado, mas existe margem de influência. Convém atuar sobre variáveis influenciáveis em vez de tentar controlar pessoas ou acontecimentos externos.";
+ else controlText="A controlabilidade direta é baixa. O foco deve ser distinguir aceitação, influência e ação própria, evitando gastar energia a tentar comandar variáveis externas.";
+ document.getElementById("controlRead").textContent=controlText;
+
+ let status;
+ if(trajectory<0) status=`<strong>Trajetória negativa.</strong> A força que mantém a trajetória atual (${DD}) supera o efeito da ação atual (${effect}). Isto descreve a configuração avaliada; não é um diagnóstico clínico nem uma previsão inevitável.`;
+ else if(trajectory===0) status=`<strong>Equilíbrio dinâmico.</strong> O efeito da ação e a resistência da trajetória estão aproximadamente equilibrados. Pequenas alterações podem mudar o sentido.`;
+ else status=`<strong>Trajetória positiva.</strong> Na configuração avaliada, o efeito da ação supera a resistência atual.`;
+ document.getElementById("status").innerHTML=status;
+
+ document.getElementById("simDD").value=DD;document.getElementById("simAM").value=AM;document.getElementById("simEA").value=Math.round(EA*100);
+ simulate();
+
+ let rec;
+ if(factors[0][1]>=70) rec=`A menor alavanca provável está na força dominante: <strong>${factors[0][0]}</strong>. Em vez de aumentar esforço indiscriminadamente, procura uma mudança que reduza essa força em 10–20 pontos ou que aumente a eficiência da ação.`;
+ else if(threshold>1) rec=`A trajetória atual exigiria EA superior a <strong>${threshold.toFixed(2)}</strong> para atingir o equilíbrio mantendo AM e DD constantes. Isto favorece uma intervenção estrutural.`;
+ else rec=`A configuração atual já ultrapassa o limiar de equilíbrio. O foco deve ser preservar a estrutura que permite a ação sem criar nova inércia.`;
+ document.getElementById("recommendation").innerHTML=rec;
+
+ document.getElementById("resultsCard").classList.remove("hidden");
+ document.getElementById("resultsCard").scrollIntoView({behavior:"smooth"});
+}
+
+function simulate(){
+ const d=val("simDD"),a=val("simAM"),e=val("simEA")/100;
+ show("simDDVal",d);show("simAMVal",a);show("simEAVal",e.toFixed(2).replace(".",","));
+ const t=a*e-d;
+ const out=document.getElementById("simTrajectory");
+ out.textContent=(t>0?"+":"")+t.toFixed(1);
+ out.className=t>0?"positive":t<0?"negative":"neutral";
+ document.getElementById("simInterpretation").textContent=t>0?
+ "A configuração simulada coloca o sistema acima do limiar de equilíbrio.":
+ t<0?"A configuração simulada continua sob domínio da resistência atual.":"A configuração simulada está no limiar.";
+}
+
+function downloadJSON(){
+ if(!data.identificacao){alert("Calcula primeiro o diagnóstico.");return}
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+ a.download=`inercia_do_rio_${(data.identificacao.nome||"utilizador").toLowerCase().replace(/\s+/g,"_")}.json`;
+ a.click();URL.revokeObjectURL(a.href);
+}
+
+function printReport(){window.print()}
+</script>
+</body>
+</html>
